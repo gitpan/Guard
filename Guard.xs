@@ -1,0 +1,104 @@
+#define PERL_NO_GET_CONTEXT
+
+#include "EXTERN.h"
+#include "perl.h"
+#include "XSUB.h"
+
+static SV *
+guard_get_cv (pTHX_ SV *cb_sv)
+{
+  HV *st;
+  GV *gvp;
+  CV *cv = sv_2cv (cb_sv, &st, &gvp, 0);
+
+  if (!cv)
+    croak ("expected a CODE reference for guard");
+
+  return (SV *)cv;
+}
+
+static void
+exec_guard_cb (pTHX_ SV *cb)
+{
+  dSP;
+  SV *saveerr = SvOK (ERRSV) ? sv_mortalcopy (ERRSV) : 0;
+
+  PUSHSTACKi (PERLSI_DESTROY);
+
+  PUSHMARK (SP);
+  PUTBACK;
+  call_sv (cb, G_VOID | G_DISCARD | G_EVAL);
+  SPAGAIN;
+
+  if (SvTRUE (ERRSV))
+    {
+      PUSHMARK (SP);
+      PUTBACK;
+      call_sv (get_sv ("Guard::DIED", 1), G_VOID | G_DISCARD | G_EVAL | G_KEEPERR);
+      SPAGAIN;
+
+      sv_setsv (ERRSV, &PL_sv_undef);
+    }
+
+  if (saveerr)
+    sv_setsv (ERRSV, saveerr);
+
+  POPSTACK;
+}
+
+static void
+scope_guard_cb (pTHX_ void *cv)
+{
+  exec_guard_cb (aTHX_ sv_2mortal ((SV *)cv));
+}
+
+static int
+guard_free (pTHX_ SV *cv, MAGIC *mg)
+{
+  exec_guard_cb (aTHX_ mg->mg_obj);
+}
+
+static MGVTBL guard_vtbl = {
+  0, 0, 0, 0,
+  guard_free
+};
+
+MODULE = Guard		PACKAGE = Guard
+
+void
+scope_guard (SV *block)
+	PROTOTYPE: &
+        CODE:
+        LEAVE; /* unfortunately, perl sandwiches XS calls into ENTER/LEAVE */
+        SAVEDESTRUCTOR_X (scope_guard_cb, (void *)SvREFCNT_inc (guard_get_cv (aTHX_ block)));
+        ENTER; /* unfortunately, perl sandwiches XS calls into ENTER/LEAVE */
+
+SV *
+guard (SV *block)
+	PROTOTYPE: &
+        CODE:
+{
+  	SV *cv = guard_get_cv (aTHX_ block);
+        SV *guard = NEWSV (0, 0);
+        SvUPGRADE (guard, SVt_PVMG);
+        sv_magicext (guard, cv, PERL_MAGIC_ext, &guard_vtbl, 0, 0);
+        RETVAL = newRV_noinc (guard);
+}
+	OUTPUT:
+        RETVAL
+
+void
+cancel (SV *guard)
+	PROTOTYPE: $
+        CODE:
+{
+  	MAGIC *mg;
+        if (!SvROK (guard)
+            || !(mg = mg_find (SvRV (guard), PERL_MAGIC_ext))
+            || mg->mg_virtual != &guard_vtbl)
+          croak ("Guard::cancel called on a non-guard object");
+
+        SvREFCNT_dec (mg->mg_obj);
+        mg->mg_obj     = 0;
+        mg->mg_virtual = 0;
+}
