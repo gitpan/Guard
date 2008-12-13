@@ -4,6 +4,8 @@
 #include "perl.h"
 #include "XSUB.h"
 
+static HV *guard_stash;
+
 static SV *
 guard_get_cv (pTHX_ SV *cb_sv)
 {
@@ -22,6 +24,9 @@ exec_guard_cb (pTHX_ SV *cb)
 {
   dSP;
   SV *saveerr = SvOK (ERRSV) ? sv_mortalcopy (ERRSV) : 0;
+  SV *savedie = PL_diehook;
+
+  PL_diehook = 0;
 
   PUSHSTACKi (PERLSI_DESTROY);
 
@@ -37,11 +42,17 @@ exec_guard_cb (pTHX_ SV *cb)
       call_sv (get_sv ("Guard::DIED", 1), G_VOID | G_DISCARD | G_EVAL | G_KEEPERR);
       SPAGAIN;
 
-      sv_setsv (ERRSV, &PL_sv_undef);
+      sv_setpvn (ERRSV, "", 0);
     }
 
   if (saveerr)
     sv_setsv (ERRSV, saveerr);
+
+  {
+    SV *oldhook = PL_diehook;
+    PL_diehook = savedie;
+    SvREFCNT_dec (oldhook);
+  }
 
   POPSTACK;
 }
@@ -65,6 +76,15 @@ static MGVTBL guard_vtbl = {
 
 MODULE = Guard		PACKAGE = Guard
 
+BOOT:
+	guard_stash = gv_stashpv ("Guard", 1);
+
+void
+CLONE (...)
+	PROTOTYPE: @
+	CODE:
+	guard_stash = gv_stashpv ("Guard", 1);
+
 void
 scope_guard (SV *block)
 	PROTOTYPE: &
@@ -83,6 +103,9 @@ guard (SV *block)
         SvUPGRADE (guard, SVt_PVMG);
         sv_magicext (guard, cv, PERL_MAGIC_ext, &guard_vtbl, 0, 0);
         RETVAL = newRV_noinc (guard);
+        SvOBJECT_on (guard);
+        ++PL_sv_objcount;
+        SvSTASH_set (guard, (HV*)SvREFCNT_inc ((SV *)guard_stash));
 }
 	OUTPUT:
         RETVAL

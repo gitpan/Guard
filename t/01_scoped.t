@@ -4,8 +4,13 @@ use Guard;
 
 print "ok 1\n";
 
+our $global = 0;
+
 {
-   scope_guard { print "ok 3\n" };
+   scope_guard {
+      print "ok 3\n"
+   };
+   local $global = 1;
    print "ok 2\n";
 }
 

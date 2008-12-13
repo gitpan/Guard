@@ -14,7 +14,7 @@ print "ok 4\n";
 {
    my $guard = guard { print "not ok 6\n" };
    print "ok 5\n";
-   Guard::cancel $guard;
+   $guard->cancel;
 }
 
 print "ok 6\n";

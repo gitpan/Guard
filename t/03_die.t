@@ -1,4 +1,4 @@
-BEGIN { $| = 1; print "1..7\n"; }
+BEGIN { $| = 1; print "1..11\n"; }
 
 use Guard;
 
@@ -26,4 +26,29 @@ eval {
 };
 
 print $@ =~ /^x3 at /s ? "" : "not ", "ok 7 # $@\n";
+
+our $x4 = 1;
+
+$SIG{__DIE__} = sub {
+   if ($x4) {
+      print "not ok 9\n";
+   } else {
+      print $_[0] =~ /^x5 at / ? "" : "not ", "ok 11 # $_[0]\n";
+   }
+   exit 0;
+};
+
+{
+   $Guard::DIED = sub {
+      print $@ =~ /^x4 at / ? "" : "not ", "ok 9 # $@\n";
+   };
+
+   scope_guard { die "x4" };
+   print "ok 8\n";
+};
+
+$x4 = 0;
+print "ok 10\n";
+
+die "x5";
 

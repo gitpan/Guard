@@ -2,7 +2,16 @@ NAME
     Guard - safe cleanup blocks
 
 SYNOPSIS
-     use Guard;
+       use Guard;
+       
+   # temporarily chdir to "/etc" directory, but make sure
+       # to go back to "/" no matter how myfun exits:
+       sub myfun {
+          scope_guard { chdir "/" };
+          chdir "/etc";
+       
+      call_function_that_might_die_or_other_fun_stuff;
+       }
 
 DESCRIPTION
     This module implements so-called "guards". A guard is something (usually
@@ -21,11 +30,14 @@ FUNCTIONS
         Registers a block that is executed when the current scope (block,
         function, method, eval etc.) is exited.
 
+        See the EXCEPTIONS section for an explanation of how exceptions
+        (i.e. "die") are handled inside guard blocks.
+
         The description below sounds a bit complicated, but that's just
         because "scope_guard" tries to get even corner cases "right": the
         goal is to provide you with a rock solid clean up tool.
 
-        This is similar to this code fragment:
+        The behaviour is similar to this code fragment:
 
            eval ... code following scope_guard ...
            {
@@ -39,17 +51,26 @@ FUNCTIONS
         when the BLOCK calls "exit", "goto", "last" or escapes via other
         means.
 
-        See EXCEPTIONS, below, for an explanation of exception handling
-        ("die") within guard blocks.
+        If multiple BLOCKs are registered to the same scope, they will be
+        executed in reverse order. Other scope-related things such as
+        "local" are managed via the same mechanism, so variables "local"ised
+        *after* calling "scope_guard" will be restored when the guard runs.
 
-        Example: Temporarily change the directory to /etc and make sure it's
-        set back to / when the function returns:
+        Example: temporarily change the timezone for the current process,
+        ensuring it will be reset when the "if" scope is exited:
 
-           sub dosomething {
-              scope_guard { chdir "/" };
-              chdir "/etc";
+           use Guard;
+           use POSIX ();
 
-              ...
+           if ($need_to_switch_tz) {
+              # make sure we call tzset after $ENV{TZ} has been restored
+              scope_guard { POSIX::tzset };
+
+              # localise after the scope_guard, so it gets undone in time
+              local $ENV{TZ} = "Europe/London";
+              POSIX::tzset;
+
+              # do something with the new timezone
            }
 
     my $guard = guard BLOCK
@@ -61,19 +82,21 @@ FUNCTIONS
 
         The returned object can be copied as many times as you want.
 
-        See EXCEPTIONS, below, for an explanation of exception handling
-        ("die") within guard blocks.
+        See the EXCEPTIONS section for an explanation of how exceptions
+        (i.e. "die") are handled inside guard blocks.
 
         Example: acquire a Coro::Semaphore for a second by registering a
         timer. The timer callback references the guard used to unlock it
-        again.
+        again. (Please ignore the fact that "Coro::Semaphore" has a "guard"
+        method that does this already):
 
+           use Guard;
            use AnyEvent;
            use Coro::Semaphore;
 
            my $sem = new Coro::Semaphore;
 
-           sub lock_1s {
+           sub lock_for_a_second {
               $sem->down;
               my $guard = guard { $sem->up };
 
@@ -90,8 +113,10 @@ FUNCTIONS
         timer, or your code can throw an exception before it can create the
         timer, or you can create multiple timers or other event watchers and
         only when the last one gets executed will the lock be unlocked.
+        Using the "guard", you do not have to worry about catching all the
+        places where you have to unlock the semaphore.
 
-    Guard::cancel $guard
+    $guard->cancel
         Calling this function will "disable" the guard object returned by
         the "guard" function, i.e. it will free the BLOCK originally passed
         to "guard "and will arrange for the BLOCK not to be executed.
@@ -100,10 +125,10 @@ FUNCTIONS
         handler and later decide it is no longer needed.
 
 EXCEPTIONS
-    Guard blocks should not normally throw exceptions (e.g. "die"), after
-    all, they are usually used to clean up after such exceptions. However,
-    if something truly exceptional is happening, a guard block should be
-    allowed to die. Also, programming errors are a large source of
+    Guard blocks should not normally throw exceptions (that is, "die").
+    After all, they are usually used to clean up after such exceptions.
+    However, if something truly exceptional is happening, a guard block
+    should be allowed to die. Also, programming errors are a large source of
     exceptions, and the programmer certainly wants to know about those.
 
     Since in most cases, the block executing when the guard gets executes
@@ -115,16 +140,19 @@ EXCEPTIONS
     $Guard::DIED (with $@ set to the actual exception), which is similar to
     how most event loops handle this case.
 
+    The default for $Guard::DIED is to call "warn "$@"".
+
+    The $@ variable will be restored to its value before the guard call in
+    all cases, so guards will not disturb $@ in any way.
+
     The code reference stored in $Guard::DIED should not die (behaviour is
     not guaranteed, but right now, the exception will simply be ignored).
-
-    The default for $Guard::DIED is to call "warn "$@"".
 
 AUTHOR
      Marc Lehmann <schmorp@schmorp.de>
      http://home.schmorp.de/
 
 THANKS
-    To Marco Maisenhelder, who reminded me of the $Guard::DIED solution to
-    the problem of exceptions.
+    Thanks to Marco Maisenhelder, who reminded me of the $Guard::DIED
+    solution to the problem of exceptions.
 
