@@ -33,14 +33,14 @@ exec_guard_cb (pTHX_ SV *cb)
   PUSHMARK (SP);
   PUTBACK;
   call_sv (cb, G_VOID | G_DISCARD | G_EVAL);
-  SPAGAIN;
 
   if (SvTRUE (ERRSV))
     {
+      SPAGAIN;
+
       PUSHMARK (SP);
       PUTBACK;
       call_sv (get_sv ("Guard::DIED", 1), G_VOID | G_DISCARD | G_EVAL | G_KEEPERR);
-      SPAGAIN;
 
       sv_setpvn (ERRSV, "", 0);
     }
@@ -77,12 +77,6 @@ static MGVTBL guard_vtbl = {
 MODULE = Guard		PACKAGE = Guard
 
 BOOT:
-	guard_stash = gv_stashpv ("Guard", 1);
-
-void
-CLONE (...)
-	PROTOTYPE: @
-	CODE:
 	guard_stash = gv_stashpv ("Guard", 1);
 
 void

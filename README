@@ -10,7 +10,7 @@ SYNOPSIS
           scope_guard { chdir "/" };
           chdir "/etc";
        
-      call_function_that_might_die_or_other_fun_stuff;
+      code_that_might_die_or_does_other_fun_stuff;
        }
 
 DESCRIPTION
@@ -131,14 +131,14 @@ EXCEPTIONS
     should be allowed to die. Also, programming errors are a large source of
     exceptions, and the programmer certainly wants to know about those.
 
-    Since in most cases, the block executing when the guard gets executes
+    Since in most cases, the block executing when the guard gets executed
     does not know or does not care about the guard blocks, it makes little
     sense to let containing code handle the exception.
 
     Therefore, whenever a guard block throws an exception, it will be
-    caught, and this module will call the code reference stored in
-    $Guard::DIED (with $@ set to the actual exception), which is similar to
-    how most event loops handle this case.
+    caught, followed by calling the code reference stored in $Guard::DIED
+    (with $@ set to the actual exception), which is similar to how most
+    event loops handle this case.
 
     The default for $Guard::DIED is to call "warn "$@"".
 
@@ -155,4 +155,12 @@ AUTHOR
 THANKS
     Thanks to Marco Maisenhelder, who reminded me of the $Guard::DIED
     solution to the problem of exceptions.
+
+SEE ALSO
+    Scope::Guard and Sub::ScopeFinalizer, which actually implement dynamic,
+    not scoped guards, and have a lot higher CPU, memory and typing
+    overhead.
+
+    Hook::Scope, which has apparently never been finished and corrupts
+    memory when used.
 

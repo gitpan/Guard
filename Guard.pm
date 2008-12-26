@@ -12,7 +12,7 @@ Guard - safe cleanup blocks
       scope_guard { chdir "/" };
       chdir "/etc";
    
-      call_function_that_might_die_or_other_fun_stuff;
+      code_that_might_die_or_does_other_fun_stuff;
    }
 
 =head1 DESCRIPTION
@@ -39,7 +39,7 @@ package Guard;
 no warnings;
 
 BEGIN {
-   $VERSION = '0.5';
+   $VERSION = '1.0';
    @ISA = qw(Exporter);
    @EXPORT = qw(guard scope_guard);
 
@@ -164,14 +164,14 @@ something truly exceptional is happening, a guard block should be allowed
 to die. Also, programming errors are a large source of exceptions, and the
 programmer certainly wants to know about those.
 
-Since in most cases, the block executing when the guard gets executes does
+Since in most cases, the block executing when the guard gets executed does
 not know or does not care about the guard blocks, it makes little sense to
 let containing code handle the exception.
 
 Therefore, whenever a guard block throws an exception, it will be caught,
-and this module will call the code reference stored in C<$Guard::DIED>
-(with C<$@> set to the actual exception), which is similar to how most
-event loops handle this case.
+followed by calling the code reference stored in C<$Guard::DIED> (with
+C<$@> set to the actual exception), which is similar to how most event
+loops handle this case.
 
 The default for C<$Guard::DIED> is to call C<warn "$@">.
 
@@ -190,6 +190,15 @@ not guaranteed, but right now, the exception will simply be ignored).
 
 Thanks to Marco Maisenhelder, who reminded me of the C<$Guard::DIED>
 solution to the problem of exceptions.
+
+=head1 SEE ALSO
+
+L<Scope::Guard> and L<Sub::ScopeFinalizer>, which actually implement
+dynamic, not scoped guards, and have a lot higher CPU, memory and typing
+overhead.
+
+L<Hook::Scope>, which has apparently never been finished and corrupts
+memory when used.
 
 =cut
 
