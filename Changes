@@ -1,5 +1,8 @@
 Revision history for Perl extension Guard
 
+1.01 Wed Jan 14 00:30:18 CET 2009
+	- guard_free didn't return a value.
+
 1.0  Fri Dec 26 14:03:28 CET 2008
 	- un-support windows process emulation (it didn't
           work anyways).

@@ -67,6 +67,8 @@ static int
 guard_free (pTHX_ SV *cv, MAGIC *mg)
 {
   exec_guard_cb (aTHX_ mg->mg_obj);
+
+  return 0;
 }
 
 static MGVTBL guard_vtbl = {

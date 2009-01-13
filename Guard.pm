@@ -39,7 +39,7 @@ package Guard;
 no warnings;
 
 BEGIN {
-   $VERSION = '1.0';
+   $VERSION = '1.01';
    @ISA = qw(Exporter);
    @EXPORT = qw(guard scope_guard);
 
