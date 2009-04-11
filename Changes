@@ -1,5 +1,9 @@
 Revision history for Perl extension Guard
 
+1.02 Sat Apr 11 06:42:06 CEST 2009
+	- set NODEBUG on scope_guard, to work around -d: modules
+          causing scope_guard to be called in the wrong context.
+
 1.01 Wed Jan 14 00:30:18 CET 2009
 	- guard_free didn't return a value.
 

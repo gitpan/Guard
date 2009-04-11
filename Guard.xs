@@ -80,6 +80,7 @@ MODULE = Guard		PACKAGE = Guard
 
 BOOT:
 	guard_stash = gv_stashpv ("Guard", 1);
+        CvNODEBUG_on (get_cv ("Guard::scope_guard", 0)); /* otherwise calling scope can be the debugger */
 
 void
 scope_guard (SV *block)
