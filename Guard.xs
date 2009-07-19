@@ -4,6 +4,15 @@
 #include "perl.h"
 #include "XSUB.h"
 
+/* apparently < 5.8.8 */
+#ifndef SvSTASH_set
+# define SvSTASH_set(x,a) SvSTASH(x) = (a)
+#endif
+
+#ifndef PERL_MAGIC_ext
+# define PERL_MAGIC_ext '~'
+#endif
+
 static HV *guard_stash;
 
 static SV *

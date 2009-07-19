@@ -1,5 +1,7 @@
 Revision history for Perl extension Guard
 
+	- try to provide compatibility to pre-5.8.8.
+
 1.02 Sat Apr 11 06:42:06 CEST 2009
 	- set NODEBUG on scope_guard, to work around -d: modules
           causing scope_guard to be called in the wrong context.

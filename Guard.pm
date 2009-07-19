@@ -15,6 +15,11 @@ Guard - safe cleanup blocks
       code_that_might_die_or_does_other_fun_stuff;
    }
 
+   # create an object that, when the last reference to it is gone,
+   # invokes the given codeblock:
+   my $guard = guard { print "destroyed!\n" };
+   undef $guard; # probably destroyed here
+
 =head1 DESCRIPTION
 
 This module implements so-called "guards". A guard is something (usually
@@ -39,7 +44,7 @@ package Guard;
 no warnings;
 
 BEGIN {
-   $VERSION = '1.02';
+   $VERSION = '1.021';
    @ISA = qw(Exporter);
    @EXPORT = qw(guard scope_guard);
 
