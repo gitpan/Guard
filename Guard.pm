@@ -44,7 +44,7 @@ package Guard;
 no warnings;
 
 BEGIN {
-   $VERSION = '1.021';
+   $VERSION = '1.022';
    @ISA = qw(Exporter);
    @EXPORT = qw(guard scope_guard);
 
@@ -57,6 +57,8 @@ BEGIN {
 our $DIED = sub { warn "$@" };
 
 =item scope_guard BLOCK
+
+=item scope_guard ($coderef)
 
 Registers a block that is executed when the current scope (block,
 function, method, eval etc.) is exited.
@@ -105,12 +107,12 @@ ensuring it will be reset when the C<if> scope is exited:
 
 =item my $guard = guard BLOCK
 
+=item my $guard = guard ($coderef)
+
 Behaves the same as C<scope_guard>, except that instead of executing
 the block on scope exit, it returns an object whose lifetime determines
 when the BLOCK gets executed: when the last reference to the object gets
 destroyed, the BLOCK gets executed as with C<scope_guard>.
-
-The returned object can be copied as many times as you want.
 
 See the EXCEPTIONS section for an explanation of how exceptions
 (i.e. C<die>) are handled inside guard blocks.
@@ -121,7 +123,7 @@ again. (Please ignore the fact that C<Coro::Semaphore> has a C<guard>
 method that does this already):
 
    use Guard;
-   use AnyEvent;
+   use Coro::AnyEvent;
    use Coro::Semaphore;
 
    my $sem = new Coro::Semaphore;
@@ -130,21 +132,18 @@ method that does this already):
       $sem->down;
       my $guard = guard { $sem->up };
 
-      my $timer;
-      $timer = AnyEvent->timer (after => 1, sub {
-         # do something
-         undef $sem;
-         undef $timer;
-      });
+      Coro::AnyEvent::sleep 1;
+
+      # $sem->up gets executed when returning
    }
 
 The advantage of doing this with a guard instead of simply calling C<<
 $sem->down >> in the callback is that you can opt not to create the timer,
-or your code can throw an exception before it can create the timer, or you
-can create multiple timers or other event watchers and only when the last
-one gets executed will the lock be unlocked. Using the C<guard>, you do
-not have to worry about catching all the places where you have to unlock
-the semaphore.
+or your code can throw an exception before it can create the timer (or
+the thread gets canceled), or you can create multiple timers or other
+event watchers and only when the last one gets executed will the lock be
+unlocked. Using the C<guard>, you do not have to worry about catching all
+the places where you have to unlock the semaphore.
 
 =item $guard->cancel
 
@@ -152,8 +151,8 @@ Calling this function will "disable" the guard object returned by the
 C<guard> function, i.e. it will free the BLOCK originally passed to
 C<guard >and will arrange for the BLOCK not to be executed.
 
-This can be useful when you use C<guard> to create a fatal cleanup handler
-and later decide it is no longer needed.
+This can be useful when you use C<guard> to create a cleanup handler to be
+called under fatal conditions and later decide it is no longer needed.
 
 =cut
 
@@ -164,21 +163,22 @@ and later decide it is no longer needed.
 =head1 EXCEPTIONS
 
 Guard blocks should not normally throw exceptions (that is, C<die>). After
-all, they are usually used to clean up after such exceptions. However, if
-something truly exceptional is happening, a guard block should be allowed
-to die. Also, programming errors are a large source of exceptions, and the
-programmer certainly wants to know about those.
+all, they are usually used to clean up after such exceptions. However,
+if something truly exceptional is happening, a guard block should of
+course be allowed to die. Also, programming errors are a large source of
+exceptions, and the programmer certainly wants to know about those.
 
 Since in most cases, the block executing when the guard gets executed does
 not know or does not care about the guard blocks, it makes little sense to
 let containing code handle the exception.
 
-Therefore, whenever a guard block throws an exception, it will be caught,
-followed by calling the code reference stored in C<$Guard::DIED> (with
-C<$@> set to the actual exception), which is similar to how most event
-loops handle this case.
+Therefore, whenever a guard block throws an exception, it will be caught
+by Guard, followed by calling the code reference stored in C<$Guard::DIED>
+(with C<$@> set to the actual exception), which is similar to how most
+event loops handle this case.
 
-The default for C<$Guard::DIED> is to call C<warn "$@">.
+The default for C<$Guard::DIED> is to call C<warn "$@">, i.e. the error is
+printed as a warning and the program continues.
 
 The C<$@> variable will be restored to its value before the guard call in
 all cases, so guards will not disturb C<$@> in any way.
@@ -199,11 +199,15 @@ solution to the problem of exceptions.
 =head1 SEE ALSO
 
 L<Scope::Guard> and L<Sub::ScopeFinalizer>, which actually implement
-dynamic, not scoped guards, and have a lot higher CPU, memory and typing
+dynamically scoped guards only, not the lexically scoped guards that their
+documentation promises, and have a lot higher CPU, memory and typing
 overhead.
 
-L<Hook::Scope>, which has apparently never been finished and corrupts
+L<Hook::Scope>, which has apparently never been finished and can corrupt
 memory when used.
+
+L<Scope::Guard> seems to have a big SEE ALSO section for even more
+modules like it.
 
 =cut
 

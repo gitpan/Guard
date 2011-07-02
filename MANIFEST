@@ -9,4 +9,4 @@ t/00_load.t
 t/01_scoped.t
 t/02_guard.t
 t/03_die.t
-META.yml                                 Module meta-data (added by MakeMaker)
+META.json                                Module meta-data (added by MakeMaker)
