@@ -4,6 +4,14 @@
 #include "perl.h"
 #include "XSUB.h"
 
+#include "patchlevel.h"
+
+#define PERL_VERSION_ATLEAST(a,b,c)                             \
+  (PERL_REVISION > (a)                                          \
+   || (PERL_REVISION == (a)                                     \
+       && (PERL_VERSION > (b)                                   \
+           || (PERL_VERSION == (b) && PERL_SUBVERSION >= (c)))))
+
 /* apparently < 5.8.8 */
 #ifndef SvSTASH_set
 # define SvSTASH_set(x,a) SvSTASH(x) = (a)
@@ -104,13 +112,15 @@ guard (SV *block)
 	PROTOTYPE: &
         CODE:
 {
-  	SV *cv = guard_get_cv (aTHX_ block);
+	SV *cv = guard_get_cv (aTHX_ block);
         SV *guard = NEWSV (0, 0);
         SvUPGRADE (guard, SVt_PVMG);
         sv_magicext (guard, cv, PERL_MAGIC_ext, &guard_vtbl, 0, 0);
         RETVAL = newRV_noinc (guard);
         SvOBJECT_on (guard);
+#if !PERL_VERSION_ATLEAST(5,18,0)
         ++PL_sv_objcount;
+#endif
         SvSTASH_set (guard, (HV*)SvREFCNT_inc ((SV *)guard_stash));
 }
 	OUTPUT:
